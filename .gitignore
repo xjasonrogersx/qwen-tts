@@ -1,2 +1,5 @@
-src/tts/__pycache__/__init__.cpython-312.pyc
-tests/__pycache__/test_audio_validation.cpython-312-pytest-9.1.1.pyc
+src/tts/__pycache__/
+tests/__pycache__/
+onnx_pipeline/__pycache__/
+__pycache__/export_onnx.cpython-312.pyc
+__pycache__/server_onnx.cpython-312.pyc

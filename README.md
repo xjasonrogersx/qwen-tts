@@ -3,6 +3,9 @@
 
 ```
 docker run -it --name tts ubuntu:24.04 bash
+
+pip install -r requirements.txt --break-system-packages
+
 ```
 
 This repo supports two generation paths:

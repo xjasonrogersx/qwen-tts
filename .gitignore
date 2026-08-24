@@ -3,3 +3,6 @@ tests/__pycache__/
 onnx_pipeline/__pycache__/
 __pycache__/export_onnx.cpython-312.pyc
 __pycache__/server_onnx.cpython-312.pyc
+onnx_models/
+characters/dimbleby/
+characters/tracyb/

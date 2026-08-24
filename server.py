@@ -37,6 +37,8 @@ except Exception:  # pragma: no cover
 
 CHARACTERS_DIR = ROOT / "characters"
 CHARACTERS_DIR.mkdir(exist_ok=True)
+GENERATED_DIR = ROOT / "generated"
+GENERATED_DIR.mkdir(exist_ok=True)
 
 MODEL = None
 
@@ -478,7 +480,7 @@ def generate_voice(character_id: str, target_text: str, language: str = "English
         ref_text=metadata.get("ref_text", ""),
     )
     output_name = f"generated_{int(time.time() * 1000)}.wav"
-    output_path = target_dir / output_name
+    output_path = GENERATED_DIR / output_name
     sf.write(output_path, wavs[0], sr)
     return str(output_path)
 
@@ -568,6 +570,8 @@ class TTSRequestHandler(BaseHTTPRequestHandler):
             rel,
             rel if rel.startswith("characters/") else f"characters/{rel}",
             rel if rel.startswith("characters/") else f"characters/{rel.lstrip('./')}",
+            rel.removeprefix("generated/") if rel.startswith("generated/") else f"generated/{rel}",
+            rel.removeprefix("generated/") if rel.startswith("generated/") else f"generated/{rel.lstrip('./')}",
         ]
 
         file_path = None

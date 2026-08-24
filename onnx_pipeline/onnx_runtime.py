@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,8 @@ try:
     import onnxruntime as ort
 except Exception:  # pragma: no cover
     ort = None
+
+logger = logging.getLogger("onnx_pipeline.onnx_runtime")
 
 
 @dataclass
@@ -82,6 +85,13 @@ class ONNXRuntimeTTS:
             bundle.tokenizers_dir = str(tokenizer_dir)
         return bundle
 
+    def _describe_session_shapes(self, session: Any) -> tuple[list[list[int | str]], list[list[int | str]]]:
+        inputs = getattr(session, "get_inputs", lambda: [])()
+        outputs = getattr(session, "get_outputs", lambda: [])()
+        input_shapes = [list(getattr(inp, "shape", []) or []) for inp in inputs]
+        output_shapes = [list(getattr(outp, "shape", []) or []) for outp in outputs]
+        return input_shapes, output_shapes
+
     def _load_sessions(self) -> None:
         if ort is None:
             return
@@ -94,7 +104,10 @@ class ONNXRuntimeTTS:
             model_path = Path(path)
             if model_path.exists():
                 try:
-                    self.sessions[name] = ort.InferenceSession(str(model_path), providers=[self.provider])
+                    session = ort.InferenceSession(str(model_path), providers=[self.provider])
+                    self.sessions[name] = session
+                    input_shapes, output_shapes = self._describe_session_shapes(session)
+                    logger.info("Loaded ONNX model %s from %s | input_shapes=%s output_shapes=%s", name, model_path, input_shapes, output_shapes)
                 except Exception:  # pragma: no cover - best effort fallback
                     self.sessions.pop(name, None)
 
@@ -151,7 +164,20 @@ class ONNXRuntimeTTS:
                 if sample is not None:
                     inputs = list(sample.get_inputs())
                     feed = {inputs[0].name: input_array[np.newaxis, :]}
+                    input_shapes = [list(value.shape) for value in feed.values()]
+                    logger.info(
+                        "Running ONNX inference model=%s input_shapes=%s input_names=%s",
+                        "code_predictor",
+                        input_shapes,
+                        list(feed.keys()),
+                    )
                     out = sample.run(None, feed)
+                    output_shapes = [list(np.asarray(value).shape) for value in out]
+                    logger.info(
+                        "ONNX inference results model=%s output_shapes=%s",
+                        "code_predictor",
+                        output_shapes,
+                    )
                     waveform = np.asarray(out[0]).reshape(-1).astype(np.float32)
                     return [waveform], 24000
             except Exception:

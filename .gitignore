@@ -6,3 +6,5 @@ __pycache__/server_onnx.cpython-312.pyc
 onnx_models/
 characters/dimbleby/
 characters/tracyb/
+generated/
+

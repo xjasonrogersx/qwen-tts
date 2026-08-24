@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import mimetypes
 import os
 import shutil
 import time
@@ -11,6 +13,7 @@ from urllib.parse import unquote, urlparse
 
 from server import (
     CHARACTERS_DIR,
+    GENERATED_DIR,
     HTML_PAGE,
     create_character,
     list_characters,
@@ -21,6 +24,9 @@ from server import (
 )
 
 ROOT = Path(__file__).resolve().parent
+GENERATED_DIR = ROOT / "generated"
+GENERATED_DIR.mkdir(exist_ok=True)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 try:
     from onnx_pipeline.onnx_runtime import ONNXRuntimeTTS
@@ -71,7 +77,7 @@ def generate_voice(character_id: str, target_text: str, language: str = "English
     )
 
     output_name = f"generated_onnx_{int(time.time() * 1000)}.wav"
-    output_path = target_dir / output_name
+    output_path = GENERATED_DIR / output_name
     import soundfile as sf
     sf.write(output_path, wavs[0], sr)
     return str(output_path)
@@ -88,6 +94,9 @@ class ONNXRequestHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/characters":
             self._send_json({"characters": list_characters()})
+            return
+        if path.startswith("/audio/"):
+            self._serve_file(path)
             return
         self._send_json({"ok": False, "error": "Not found"}, status=404)
 
@@ -149,6 +158,38 @@ class ONNXRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _serve_file(self, url_path: str) -> None:
+        rel = url_path.removeprefix("/audio/")
+        candidates = [
+            rel,
+            rel if rel.startswith("characters/") else f"characters/{rel}",
+            rel if rel.startswith("characters/") else f"characters/{rel.lstrip('./')}",
+            rel.removeprefix("generated/") if rel.startswith("generated/") else f"generated/{rel}",
+            rel.removeprefix("generated/") if rel.startswith("generated/") else f"generated/{rel.lstrip('./')}",
+        ]
+
+        file_path = None
+        for candidate in candidates:
+            candidate_path = (ROOT / unquote(candidate)).resolve()
+            if candidate_path.exists() and (ROOT in candidate_path.parents or candidate_path == ROOT):
+                file_path = candidate_path
+                break
+
+        if file_path is None:
+            self._send_json({"ok": False, "error": "File not found"}, status=404)
+            return
+
+        mime_type, _ = mimetypes.guess_type(str(file_path))
+        if mime_type is None:
+            mime_type = "application/octet-stream"
+
+        data = file_path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", mime_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
 
 def run_server(host: str = "0.0.0.0", port: int = 8001) -> None:

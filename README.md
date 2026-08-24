@@ -2,7 +2,9 @@
 
 
 ```
-docker run -it --name tts ubuntu:24.04 bash
+docker run -it --name tts -p 8000:8000 -v ubuntu:24.04 
+
+apt install sox
 
 pip install -r requirements.txt --break-system-packages
 
@@ -42,22 +44,6 @@ It does this:
 
 So, downloading the ONNX files alone does not make the ONNX path runnable in its current form. The repo still needs a real ONNX graph execution implementation or a compatible exported model API that matches the expected `generate_voice_clone()` contract.
 
-## Run the project
-
-### 1) Create a virtual environment
-
-```bash
-cd /home/jason/work/tts
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-### 2) Install dependencies
-
-```bash
-pip install -U pip
-pip install -e .
-```
 
 ### 3) Start the working PyTorch server
 
